@@ -1,0 +1,159 @@
+/* Declaration Styling */
+.declaration {
+  width: 100%;
+}
+
+.declaration-container {
+  width: 100%;
+}
+
+.declaration-box {
+  padding: 25px;
+  background-color: #f0f7f4;
+  border: 2px solid #4caf50;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.declaration-box h3 {
+  color: #2c3e50;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 20px;
+  text-align: center;
+}
+
+.declaration-text {
+  background-color: white;
+  padding: 20px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #4caf50;
+}
+
+.declaration-text p {
+  color: #555;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.declaration-text p:last-child {
+  margin-bottom: 0;
+}
+
+.declaration-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  cursor: pointer;
+  accent-color: #4caf50;
+}
+
+.declaration-checkbox + span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.5;
+}
+
+/* Submission Info */
+.submission-info {
+  padding: 20px;
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.submission-info p {
+  margin: 0;
+  color: #856404;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Submit Button */
+.btn-submit {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 15px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background-color: #0b7dda;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.btn-submit:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Success Message */
+.success-message {
+  padding: 15px;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  color: #155724;
+  margin-top: 20px;
+  text-align: center;
+  animation: slideIn 0.3s ease;
+}
+
+.success-message p {
+  margin: 0;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .declaration-box {
+    padding: 20px;
+  }
+
+  .declaration-box h3 {
+    font-size: 18px;
+  }
+
+  .declaration-text {
+    padding: 15px;
+  }
+
+  .declaration-text p {
+    font-size: 13px;
+  }
+
+  .submission-info {
+    padding: 15px;
+  }
+
+  .submission-info p {
+    font-size: 13px;
+  }
+
+  .btn-submit {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+}
