@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { StudentEnrollmentForm, PersonalDetails, AddressDetails, ParentGuardianDetails, AcademicDetails } from '../types';
 import { EnrollmentFormSchema } from '../validation/schema';
 import { formatZodErrors, type ValidationError } from '../validation/utils';
+import { submitStudentEnrollment } from '../services/api';
 import '../styles/form.css';
 import '../styles/formFields.css';
 import '../styles/addressFields.css';
@@ -20,6 +21,7 @@ import DeclarationSection from './FormSections/DeclarationSection';
 const EnrollmentForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<StudentEnrollmentForm>({
     personalDetails: {} as any,
     addressDetails: {
@@ -268,7 +270,7 @@ const EnrollmentForm = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     try {
       // Map internal form structure to schema structure for validation
       const dataToValidate = {
@@ -285,12 +287,29 @@ const EnrollmentForm = () => {
       EnrollmentFormSchema.parse(dataToValidate);
       
       setValidationErrors([]);
-      console.log('=== STUDENT ENROLLMENT FORM SUBMITTED ===');
-      console.log(JSON.stringify(formData, null, 2));
-      
-      alert('✓ Form submitted successfully!\n\nCheck the browser console for detailed form data.');
-      // TODO: Send formData to backend API
+      setIsSubmitting(true);
+
+      // Submit to backend API
+      const response = await submitStudentEnrollment(formData);
+
+      setIsSubmitting(false);
+
+      if (response.success) {
+        console.log('=== STUDENT ENROLLMENT FORM SUBMITTED SUCCESSFULLY ===');
+        console.log(JSON.stringify(formData, null, 2));
+        console.log('API Response:', response.data);
+        
+        alert(`✓ Form submitted successfully!\n\n${response.message}\n\nYour enrollment has been recorded in the system.`);
+        
+        // Optional: Reset form or redirect
+        // window.location.href = '/success';
+      } else {
+        console.error('API Error:', response.errors);
+        alert(`❌ Submission failed!\n\n${response.message}\n\nErrors:\n${response.errors?.join('\n')}`);
+      }
     } catch (error: any) {
+      setIsSubmitting(false);
+      
       // Check if it's a ZodError
       if (error.issues && Array.isArray(error.issues)) {
         const errors = formatZodErrors(error);
@@ -423,9 +442,9 @@ const EnrollmentForm = () => {
           <button 
             className="btn btn-success"
             onClick={handleSubmit}
-            disabled={!formData.declaration.agreedToTerms || !formData.declaration.place}
+            disabled={!formData.declaration.agreedToTerms || !formData.declaration.place || isSubmitting}
           >
-            Submit Form
+            {isSubmitting ? 'Submitting...' : 'Submit Form'}
           </button>
         ) : (
           <button 
