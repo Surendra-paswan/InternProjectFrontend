@@ -249,11 +249,19 @@ export const getAllStudents = async (): Promise<ApiResponse<any[]>> => {
 };
 
 // Get student by ID
-export const getStudentById = async (id: string): Promise<ApiResponse<any>> => {
+export const getStudentById = async (idOrPid: string): Promise<ApiResponse<any>> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/Student/${id}`, {
+    // First try by primary id
+    let response = await axios.get(`${API_BASE_URL}/Student/${idOrPid}`, {
       validateStatus: () => true,
     });
+
+    // If not found, attempt PID-based route (common pattern `/Student/pid/{pid}`)
+    if (response.status === 404) {
+      response = await axios.get(`${API_BASE_URL}/Student/pid/${idOrPid}`, {
+        validateStatus: () => true,
+      });
+    }
 
     if (response.status >= 200 && response.status < 300) {
       return {
@@ -263,7 +271,7 @@ export const getStudentById = async (id: string): Promise<ApiResponse<any>> => {
     } else {
       return {
         success: false,
-        message: 'Failed to fetch student',
+        message: response.data?.message || 'Failed to fetch student',
         errors: ['Student not found'],
       };
     }
@@ -279,9 +287,13 @@ export const getStudentById = async (id: string): Promise<ApiResponse<any>> => {
 // Update student by ID
 export const updateStudentById = async (id: string, data: any): Promise<ApiResponse<any>> => {
   try {
+    console.log('🔄 Updating student:', id);
     const response = await axios.put(`${API_BASE_URL}/Student/${id}`, data, {
       validateStatus: () => true,
     });
+
+    console.log('📊 Update response status:', response.status);
+    console.log('📊 Update response data:', response.data);
 
     if (response.status >= 200 && response.status < 300) {
       return {
@@ -290,10 +302,16 @@ export const updateStudentById = async (id: string, data: any): Promise<ApiRespo
         message: 'Student updated successfully',
       };
     } else {
+      // Extract validation errors if present
+      const validationErrors = response.data?.errors || {};
+      const errorMessages = Object.entries(validationErrors).map(([field, msgs]: [string, any]) => 
+        `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`
+      );
+      
       return {
         success: false,
-        message: 'Failed to update student',
-        errors: ['Update failed'],
+        message: response.data?.message || response.data?.title || 'Failed to update student',
+        errors: errorMessages.length > 0 ? errorMessages : [response.data?.message || 'Update failed'],
       };
     }
   } catch (error: any) {

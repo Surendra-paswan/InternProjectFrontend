@@ -19,11 +19,16 @@ const NavBar = () => {
         {/* Desktop menu */}
         <div className="hidden items-center gap-6 md:flex">
           <Link to="/" className="rounded-full px-3 py-2 text-sm font-medium transition hover:bg-white/15">Home</Link>
-          <div className="relative">
+          <div
+            className="relative"
+            onMouseEnter={() => setIsDataOpen(true)}
+            onMouseLeave={() => setIsDataOpen(false)}
+          >
             <button
               className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition hover:bg-white/15"
               onClick={toggleData}
-              onBlur={() => setIsDataOpen(false)}
+              aria-expanded={isDataOpen}
+              aria-haspopup="true"
             >
               <span>Data</span>
               <svg
@@ -37,11 +42,11 @@ const NavBar = () => {
               </svg>
             </button>
             {isDataOpen && (
-              <div className="absolute left-0 mt-2 w-52 rounded-xl bg-white/95 py-2 text-slate-900 shadow-xl ring-1 ring-black/5 backdrop-blur">
-                <Link to="/" className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Create New Data</Link>
-                <Link to="/view-data" className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">View Data</Link>
-                <Link to="/edit-data" className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Edit Data</Link>
-                <Link to="/delete-data" className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Delete Data</Link>
+              <div className="absolute left-0 z-20 mt-2 w-52 rounded-xl bg-white/95 py-2 text-slate-900 shadow-xl ring-1 ring-black/5 backdrop-blur">
+                <Link to="/" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Create New Data</Link>
+                <Link to="/view-data" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">View Data</Link>
+                <Link to="/edit-data" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Edit Data</Link>
+                <Link to="/delete-data" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Delete Data</Link>
               </div>
             )}
           </div>
