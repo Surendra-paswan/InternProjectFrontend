@@ -275,3 +275,61 @@ export const getStudentById = async (id: string): Promise<ApiResponse<any>> => {
     };
   }
 };
+
+// Update student by ID
+export const updateStudentById = async (id: string, data: any): Promise<ApiResponse<any>> => {
+  try {
+    const response = await axios.put(`${API_BASE_URL}/Student/${id}`, data, {
+      validateStatus: () => true,
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+      return {
+        success: true,
+        data: response.data,
+        message: 'Student updated successfully',
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Failed to update student',
+        errors: ['Update failed'],
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      message: 'Network error',
+      errors: [error.message],
+    };
+  }
+};
+
+// Delete student by ID
+export const deleteStudentById = async (id: string): Promise<ApiResponse<any>> => {
+  try {
+    const response = await axios.delete(`${API_BASE_URL}/Student/${id}`, {
+      validateStatus: () => true,
+    });
+
+    if (response.status >= 200 && response.status < 300) {
+      return {
+        success: true,
+        message: 'Student deleted successfully',
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Failed to delete student',
+        errors: ['Delete failed'],
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      message: 'Network error',
+      errors: [error.message],
+    };
+  }
+};
+
