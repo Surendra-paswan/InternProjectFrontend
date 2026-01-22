@@ -2,6 +2,7 @@
 
 export interface PersonalDetails {
   profileImage?: File;
+  profilePhotoUrl?: string;
   firstName: string;
   middleName?: string;
   lastName: string;

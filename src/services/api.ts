@@ -283,61 +283,70 @@ export const getAllStudents = async (): Promise<ApiResponse<any[]>> => {
 // Get student by ID (supports numeric ID, UUID, or PID)
 export const getStudentById = async (idOrPid: string): Promise<ApiResponse<any>> => {
   try {
-    const tryGet = async (url: string) => {
-      console.log(`🔗 Fetching: ${url}`);
-      const res = await axios.get(url, { validateStatus: () => true });
-      console.log(`📊 Status: ${res.status}, Response:`, res.data);
-      return res;
+    console.log(`🔍 Searching for student: ${idOrPid}`);
+    
+    // Helper to fetch without logging 404s as errors
+    const tryGet = async (url: string, logLabel: string) => {
+      try {
+        const res = await axios.get(url, { validateStatus: () => true });
+        if (res.status >= 200 && res.status < 300) {
+          console.log(`✓ ${logLabel} found`);
+          return res.data?.data ?? res.data;
+        }
+        return null;
+      } catch {
+        return null;
+      }
     };
 
-    // Attempt both endpoints to obtain the fullest record
-    console.log(`🔍 Searching for: ${idOrPid}`);
-    const resId = await tryGet(`${API_BASE_URL}/Student/${idOrPid}`);
-    const payloadId = resId.status >= 200 && resId.status < 300 ? (resId.data?.data ?? resId.data) : null;
-    console.log(`✓ ID payload:`, payloadId);
-
-    const resPid = await tryGet(`${API_BASE_URL}/Student/pid/${idOrPid}`);
-    const payloadPid = resPid.status >= 200 && resPid.status < 300 ? (resPid.data?.data ?? resPid.data) : null;
-    console.log(`✓ PID payload:`, payloadPid);
-
-    const merged = mergeStudentPayloads(payloadId, payloadPid);
-    console.log(`✓ Merged result:`, merged);
-
-    if (merged) {
-      return { success: true, data: merged };
+    // Strategy 1: Try direct fetch by ID/PID (works for both UUID and numeric ID if backend supports)
+    let studentData = await tryGet(`${API_BASE_URL}/Student/${idOrPid}`, 'Direct lookup');
+    
+    if (studentData) {
+      return { success: true, data: studentData };
     }
 
-    // If both direct lookups failed, try to find by numeric ID in the students list
-    console.log(`🔄 Direct lookups failed. Trying numeric ID lookup...`);
+    // Strategy 2: For numeric IDs, search in the full list
     const numericId = parseInt(idOrPid, 10);
     if (!isNaN(numericId)) {
+      console.log(`🔄 Searching by numeric ID: ${numericId}`);
       const studentsRes = await getAllStudents();
-      console.log(`📋 getAllStudents result:`, studentsRes);
+      
       if (studentsRes.success && Array.isArray(studentsRes.data)) {
-        console.log(`📋 Searching in ${studentsRes.data.length} students for ID: ${numericId}`);
         const found = studentsRes.data.find((s: any) => s.id === numericId);
-        console.log(`🔍 Found student:`, found);
-        if (found && found.pid) {
-          console.log(`✓ Found student by numeric ID ${numericId}, PID: ${found.pid}`);
-          // Fetch the full record using the PID directly (not /pid/ route)
-          const resFull = await tryGet(`${API_BASE_URL}/Student/${found.pid}`);
-          const payloadFull = resFull.status >= 200 && resFull.status < 300 ? (resFull.data?.data ?? resFull.data) : null;
-          if (payloadFull) {
-            console.log(`✓ Fetched full record for numeric ID ${numericId}:`, payloadFull);
-            return { success: true, data: payloadFull };
-          } else {
-            console.log(`❌ Failed to fetch full record for PID: ${found.pid}`);
+        
+        if (found) {
+          console.log(`✓ Found student with ID ${numericId}, PID: ${found.pid || 'N/A'}`);
+          
+          // If student has a PID, fetch the full record
+          if (found.pid) {
+            studentData = await tryGet(`${API_BASE_URL}/Student/${found.pid}`, 'Full record');
+            if (studentData) {
+              return { success: true, data: studentData };
+            }
           }
-        } else {
-          console.log(`❌ No student found with numeric ID: ${numericId}`);
+          
+          // Return the found student from the list
+          return { success: true, data: found };
         }
       }
     }
 
-    // No successful payloads or numeric ID lookup
-    const message = resId.data?.message || resPid.data?.message || 'Failed to fetch student';
-    console.log(`❌ Failed: ${message}`);
-    return { success: false, message, errors: ['Student not found'] };
+    // Strategy 3: If it looks like a UUID but direct fetch failed, try the /pid/ endpoint
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrPid);
+    if (isUUID) {
+      studentData = await tryGet(`${API_BASE_URL}/Student/pid/${idOrPid}`, 'PID lookup');
+      if (studentData) {
+        return { success: true, data: studentData };
+      }
+    }
+
+    console.log(`❌ Student not found: ${idOrPid}`);
+    return { 
+      success: false, 
+      message: 'Student not found. Please check the ID or PID.', 
+      errors: ['Student not found'] 
+    };
   } catch (error: any) {
     console.error(`❌ Network error:`, error.message);
     return { success: false, message: 'Network error', errors: [error.message] };

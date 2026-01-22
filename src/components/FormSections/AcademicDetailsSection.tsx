@@ -68,6 +68,22 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
 
   const programList = getProgramsForFaculty(data.currentEnrollment?.faculty || '');
 
+  // Ensure current values appear even if not in predefined options
+  const currentFaculty = data.currentEnrollment?.faculty || '';
+  const facultiesWithCurrent = currentFaculty && !faculties.includes(currentFaculty) ? [currentFaculty, ...faculties] : faculties;
+  const currentProgram = data.currentEnrollment?.program || '';
+  const programListWithCurrent = currentProgram && !programList.includes(currentProgram) ? [currentProgram, ...programList] : programList;
+  const currentLevel = data.currentEnrollment?.courseLevel || '';
+  const courseLevelsWithCurrent = currentLevel && !courseLevels.includes(currentLevel) ? [currentLevel, ...courseLevels] : courseLevels;
+  const currentYear = data.currentEnrollment?.academicYear || '';
+  const academicYearsWithCurrent = currentYear && !academicYears.includes(currentYear) ? [currentYear, ...academicYears] : academicYears;
+  const currentSemester = data.currentEnrollment?.semesterClass || '';
+  const semestersClassesWithCurrent = currentSemester && !semestersClasses.includes(currentSemester) ? [currentSemester, ...semestersClasses] : semestersClasses;
+  const currentSection = data.currentEnrollment?.section || '';
+  const sectionsWithCurrent = currentSection && !sections.includes(currentSection) ? [currentSection, ...sections] : sections;
+  const currentStatus = data.currentEnrollment?.academicStatus || '';
+  const academicStatusesWithCurrent = currentStatus && !academicStatuses.includes(currentStatus) ? [currentStatus, ...academicStatuses] : academicStatuses;
+
   return (
     <div className="form-section academic-details">
       {/* Current Program Enrollment */}
@@ -86,7 +102,7 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
             className={`form-input ${hasStepFieldError(errors, stepKey, 'currentEnrollment.faculty') ? 'error' : ''}`}
           >
             <option value="">-- Select Faculty --</option>
-            {faculties.map(faculty => (
+            {facultiesWithCurrent.map(faculty => (
               <option key={faculty} value={faculty}>{faculty}</option>
             ))}
           </select>
@@ -110,7 +126,7 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
             className={`form-input ${hasStepFieldError(errors, stepKey, 'currentEnrollment.program') ? 'error' : ''}`}
           >
             <option value="">-- Select Program --</option>
-            {programList.map(program => (
+            {programListWithCurrent.map(program => (
               <option key={program} value={program}>{program}</option>
             ))}
           </select>
@@ -133,7 +149,7 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
             className={`form-input ${hasStepFieldError(errors, stepKey, 'currentEnrollment.courseLevel') ? 'error' : ''}`}
           >
             <option value="">-- Select Level --</option>
-            {courseLevels.map(level => (
+            {courseLevelsWithCurrent.map(level => (
               <option key={level} value={level}>{level}</option>
             ))}
           </select>
@@ -158,7 +174,7 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
             className={`form-input ${hasStepFieldError(errors, stepKey, 'currentEnrollment.academicYear') ? 'error' : ''}`}
           >
             <option value="">-- Select Year --</option>
-            {academicYears.map(year => (
+            {academicYearsWithCurrent.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
@@ -181,7 +197,7 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
             className={`form-input ${hasStepFieldError(errors, stepKey, 'currentEnrollment.semesterClass') ? 'error' : ''}`}
           >
             <option value="">-- Select Semester --</option>
-            {semestersClasses.map(sem => (
+            {semestersClassesWithCurrent.map(sem => (
               <option key={sem} value={sem}>{sem}</option>
             ))}
           </select>
@@ -204,7 +220,7 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
             className={`form-input ${hasStepFieldError(errors, stepKey, 'currentEnrollment.section') ? 'error' : ''}`}
           >
             <option value="">-- Select Section --</option>
-            {sections.map(section => (
+            {sectionsWithCurrent.map(section => (
               <option key={section} value={section}>{section}</option>
             ))}
           </select>
@@ -286,7 +302,7 @@ const AcademicDetailsSection = ({ data, onChange, errors = [] }: AcademicDetails
             className="form-input"
           >
             <option value="">-- Select Status --</option>
-            {academicStatuses.map(status => (
+            {academicStatusesWithCurrent.map(status => (
               <option key={status} value={status}>{status}</option>
             ))}
           </select>

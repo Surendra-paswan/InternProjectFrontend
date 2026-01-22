@@ -15,7 +15,7 @@ const PersonalDetailsSection = ({ data, onChange, errors = [] }: PersonalDetails
   const [imagePreview, setImagePreview] = useState<string>('');
   const stepKey = 'personal';
 
-  // Recreate preview when data.profileImage exists
+  // Recreate preview when data.profileImage exists OR when profilePhotoUrl is set
   useEffect(() => {
     if (data.profileImage instanceof File) {
       const reader = new FileReader();
@@ -23,8 +23,10 @@ const PersonalDetailsSection = ({ data, onChange, errors = [] }: PersonalDetails
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(data.profileImage);
+    } else if (data.profilePhotoUrl && typeof data.profilePhotoUrl === 'string' && data.profilePhotoUrl.trim() !== '') {
+      setImagePreview(data.profilePhotoUrl);
     }
-  }, [data.profileImage]);
+  }, [data.profileImage, data.profilePhotoUrl]);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -206,18 +208,25 @@ const PersonalDetailsSection = ({ data, onChange, errors = [] }: PersonalDetails
             Nationality
             <span className="required">*</span>
           </label>
-          <select
-            name="nationality"
-            value={data.nationality || 'Nepali'}
-            onChange={handleInputChange}
-            required
-            className={`form-input ${hasStepFieldError(errors, stepKey, 'nationality') ? 'error' : ''}`}
-          >
-            <option value="Nepali">Nepali</option>
-            <option value="Indian">Indian</option>
-            <option value="Chinese">Chinese</option>
-            <option value="Other">Other</option>
-          </select>
+          {(() => {
+            const options = ['Nepali', 'Indian', 'Chinese', 'Other'];
+            const withCurrent = data.nationality && !options.includes(data.nationality)
+              ? [data.nationality, ...options]
+              : options;
+            return (
+              <select
+                name="nationality"
+                value={data.nationality || 'Nepali'}
+                onChange={handleInputChange}
+                required
+                className={`form-input ${hasStepFieldError(errors, stepKey, 'nationality') ? 'error' : ''}`}
+              >
+                {withCurrent.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            );
+          })()}
           {hasStepFieldError(errors, stepKey, 'nationality') && (
             <ValidationErrorDisplay 
               error={getStepFieldError(errors, stepKey, 'nationality')} 
@@ -449,19 +458,26 @@ const PersonalDetailsSection = ({ data, onChange, errors = [] }: PersonalDetails
             Gender
             <span className="required">*</span>
           </label>
-          <select
-            name="gender"
-            value={data.gender || ''}
-            onChange={handleInputChange}
-            required
-            className={`form-input ${hasStepFieldError(errors, stepKey, 'gender') ? 'error' : ''}`}
-          >
-            <option value="">-- Select Gender --</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-            <option value="Prefer not to say">Prefer not to say</option>
-          </select>
+          {(() => {
+            const options = ['Male', 'Female', 'Other', 'Prefer not to say'];
+            const withCurrent = data.gender && !options.includes(data.gender)
+              ? [data.gender, ...options]
+              : options;
+            return (
+              <select
+                name="gender"
+                value={data.gender || ''}
+                onChange={handleInputChange}
+                required
+                className={`form-input ${hasStepFieldError(errors, stepKey, 'gender') ? 'error' : ''}`}
+              >
+                <option value="">-- Select Gender --</option>
+                {withCurrent.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            );
+          })()}
           {hasStepFieldError(errors, stepKey, 'gender') && (
             <ValidationErrorDisplay 
               error={getStepFieldError(errors, stepKey, 'gender')} 
@@ -471,38 +487,48 @@ const PersonalDetailsSection = ({ data, onChange, errors = [] }: PersonalDetails
 
         <div className="form-group">
           <label className="form-label">Blood Group</label>
-          <select
-            name="bloodGroup"
-            value={data.bloodGroup || ''}
-            onChange={handleInputChange}
-            className="form-input"
-          >
-            <option value="">-- Select Blood Group --</option>
-            <option value="A+">A+</option>
-            <option value="A-">A-</option>
-            <option value="B+">B+</option>
-            <option value="B-">B-</option>
-            <option value="O+">O+</option>
-            <option value="O-">O-</option>
-            <option value="AB+">AB+</option>
-            <option value="AB-">AB-</option>
-          </select>
+          {(() => {
+            const options = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+            const withCurrent = data.bloodGroup && !options.includes(data.bloodGroup)
+              ? [data.bloodGroup, ...options]
+              : options;
+            return (
+              <select
+                name="bloodGroup"
+                value={data.bloodGroup || ''}
+                onChange={handleInputChange}
+                className="form-input"
+              >
+                <option value="">-- Select Blood Group --</option>
+                {withCurrent.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            );
+          })()}
         </div>
 
         <div className="form-group">
           <label className="form-label">Marital Status</label>
-          <select
-            name="maritalStatus"
-            value={data.maritalStatus || ''}
-            onChange={handleInputChange}
-            className="form-input"
-          >
-            <option value="">-- Select Status --</option>
-            <option value="Single">Single</option>
-            <option value="Married">Married</option>
-            <option value="Divorced">Divorced</option>
-            <option value="Widowed">Widowed</option>
-          </select>
+          {(() => {
+            const options = ['Single', 'Married', 'Divorced', 'Widowed'];
+            const withCurrent = data.maritalStatus && !options.includes(data.maritalStatus)
+              ? [data.maritalStatus, ...options]
+              : options;
+            return (
+              <select
+                name="maritalStatus"
+                value={data.maritalStatus || ''}
+                onChange={handleInputChange}
+                className="form-input"
+              >
+                <option value="">-- Select Status --</option>
+                {withCurrent.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            );
+          })()}
         </div>
       </div>
 
@@ -510,19 +536,25 @@ const PersonalDetailsSection = ({ data, onChange, errors = [] }: PersonalDetails
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Religion</label>
-          <select
-            name="religion"
-            value={data.religion || ''}
-            onChange={handleInputChange}
-            className="form-input"
-          >
-            <option value="">-- Select Religion --</option>
-            <option value="Hindu">Hindu</option>
-            <option value="Buddhist">Buddhist</option>
-            <option value="Muslim">Muslim</option>
-            <option value="Christian">Christian</option>
-            <option value="Other">Other</option>
-          </select>
+          {(() => {
+            const options = ['Hindu', 'Buddhist', 'Muslim', 'Christian', 'Other'];
+            const withCurrent = data.religion && !options.includes(data.religion)
+              ? [data.religion, ...options]
+              : options;
+            return (
+              <select
+                name="religion"
+                value={data.religion || ''}
+                onChange={handleInputChange}
+                className="form-input"
+              >
+                <option value="">-- Select Religion --</option>
+                {withCurrent.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            );
+          })()}
         </div>
 
         <div className="form-group">

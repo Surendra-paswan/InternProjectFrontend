@@ -34,6 +34,8 @@ const emptyForm = {
     disabilityStatus: '',
     disabilityType: '',
     disabilityPercentage: '',
+    profileImage: undefined,
+    profilePhotoUrl: '',
   },
   addressDetails: {
     permanent: {
@@ -144,7 +146,16 @@ const mapStudentToFormData = (student: any) => {
 
   const extracurricular = (student.extracurricularDetails || [])[0] || {}
   const disabilityDetail = (student.disabilityDetails || [])[0] || {}
+  
+  // Map hosteller status display values
+  const hostellerStatusDisplay = extracurricular.hostellerStatusDisplay || extracurricular.hostellerStatus?.toString() || ''
+  const hostellerStatus = hostellerStatusDisplay === 'Hosteller' ? 'Hosteller' : hostellerStatusDisplay === 'DayScholar' ? 'Day Scholar' : hostellerStatusDisplay
+  
+  // Map transportation method display values
+  const transportDisplay = extracurricular.transportationMethodDisplay || extracurricular.transportMethod?.toString() || extracurricular.transportationMethod?.toString() || ''
+  const transportationMethod = transportDisplay
 
+  // Map enum display values to form option values
   const bloodGroupDisplay = student.personalDetails?.bloodGroupDisplay || ''
   const bloodGroup = {
     A_Positive: 'A+',
@@ -155,7 +166,41 @@ const mapStudentToFormData = (student: any) => {
     O_Negative: 'O-',
     AB_Positive: 'AB+',
     AB_Negative: 'AB-',
-  }[bloodGroupDisplay as keyof Record<string, string>] || ''
+  }[bloodGroupDisplay as keyof Record<string, string>] || bloodGroupDisplay || ''
+
+  const nationality = student.personalDetails?.nationalityDisplay === 'Nepal' ? 'Nepali' : student.personalDetails?.nationalityDisplay || 'Nepali'
+  
+  // Resolve photo URL for display
+  const photoPath = student.photoPath || ''
+  const BACKEND_ORIGIN = import.meta.env.DEV
+    ? (import.meta.env.VITE_API_ORIGIN || 'https://localhost:7257')
+    : (() => {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://localhost:7257/api'
+        try { return new URL(apiUrl).origin } catch { return 'https://localhost:7257' } 
+      })()
+  const normalizePath = (p: string) => p.replace(/\\/g, '/').trim()
+  const resolveUrl = (u: string) => {
+    if (!u) return ''
+    const clean = normalizePath(u)
+    if (/^https?:\/\//i.test(clean)) return clean
+    const path = clean.startsWith('/') ? clean : '/' + clean
+    return `${BACKEND_ORIGIN}${path}`
+  }
+  const profilePhotoUrl = photoPath ? resolveUrl(photoPath) : ''
+  
+  // Map academic year from Year2081 to 1st Year, 2nd Year etc (defaults to original if no match)
+  const academicYearDisplay = student.academicEnrollment?.academicYearDisplay || ''
+  const academicYear = academicYearDisplay.replace('Year', '') === '2081' ? '1st Year' : academicYearDisplay
+  
+  // Map semester from FirstSemester to First Semester
+  const semesterDisplay = student.academicEnrollment?.semesterDisplay || ''
+  const semester = semesterDisplay.replace(/([A-Z])/g, ' $1').trim()
+  
+  // Map scholarship type from Government to Government Scholarship
+  const scholarshipTypeDisplay = student.financialDetail?.scholarshipTypeDisplay || ''
+  const scholarshipType = scholarshipTypeDisplay && !scholarshipTypeDisplay.includes('Scholarship') 
+    ? `${scholarshipTypeDisplay} Scholarship` 
+    : scholarshipTypeDisplay
 
   return {
     ...emptyForm,
@@ -166,7 +211,7 @@ const mapStudentToFormData = (student: any) => {
       lastName: student.lastName || '',
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : '',
       placeOfBirth: student.placeOfBirth || '',
-      nationality: student.personalDetails?.nationalityDisplay || 'Nepali',
+      nationality,
       citizenshipNumber: student.citizenshipDetail?.citizenshipNumber || '',
       citizenshipIssueDate: student.citizenshipDetail?.issueDate ? student.citizenshipDetail.issueDate.split('T')[0] : '',
       citizenshipIssueDistrict: student.citizenshipDetail?.issueDistrict || '',
@@ -185,6 +230,8 @@ const mapStudentToFormData = (student: any) => {
       disabilityStatus: disabilityDetail.disabilityStatus || '',
       disabilityType: disabilityDetail.disabilityType || '',
       disabilityPercentage: disabilityDetail.disabilityPercentage?.toString() || '',
+      profileImage: undefined,
+      profilePhotoUrl,
     },
     addressDetails: {
       permanent: {
@@ -203,7 +250,18 @@ const mapStudentToFormData = (student: any) => {
         wardNumber: temporary.wardNumber?.toString() || '',
         toleStreet: temporary.toleStreet || '',
         houseNumber: temporary.houseNumber || '',
-        sameAsPermanent: false,
+        sameAsPermanent: (() => {
+          // Detect if temporary is same as permanent
+          if (!temporary || !permanent) return false;
+          return (
+            temporary.province === permanent.province &&
+            temporary.district === permanent.district &&
+            temporary.municipality === permanent.municipality &&
+            temporary.wardNumber === permanent.wardNumber &&
+            temporary.toleStreet === permanent.toleStreet &&
+            temporary.houseNumber === permanent.houseNumber
+          );
+        })(),
       },
     },
     parentGuardianDetails: {
@@ -229,16 +287,16 @@ const mapStudentToFormData = (student: any) => {
     academicDetails: {
       ...emptyForm.academicDetails,
       currentEnrollment: {
-        faculty: student.academicEnrollment?.faculty?.toString() || '',
-        program: student.academicEnrollment?.program?.toString() || '',
-        courseLevel: student.academicEnrollment?.level?.toString() || '',
-        academicYear: student.academicEnrollment?.academicYear?.toString() || '',
-        semesterClass: student.academicEnrollment?.semester?.toString() || '',
-        section: student.academicEnrollment?.section?.toString() || '',
+        faculty: student.academicEnrollment?.facultyDisplay || '',
+        program: student.academicEnrollment?.programDisplay || '',
+        courseLevel: student.academicEnrollment?.levelDisplay || '',
+        academicYear,
+        semesterClass: semester,
+        section: student.academicEnrollment?.sectionDisplay || '',
         rollNumber: student.academicEnrollment?.rollNumber || '',
         registrationNumber: student.academicEnrollment?.registrationNumber || '',
         enrollDate: student.academicEnrollment?.enrollmentDate ? student.academicEnrollment.enrollmentDate.split('T')[0] : '',
-        academicStatus: student.academicEnrollment?.academicStatus?.toString() || '',
+        academicStatus: student.academicEnrollment?.academicStatusDisplay || '',
       },
       previousHistory,
       citizenshipFrontUpload: undefined,
@@ -247,29 +305,45 @@ const mapStudentToFormData = (student: any) => {
       characterCertificateUpload: undefined,
     },
     financialDetails: {
-      feeCategory: student.financialDetail?.feeCategory?.toString() || '',
+      feeCategory: student.financialDetail?.feeCategoryDisplay || '',
       scholarshipDetails: {
-        scholarshipType: student.financialDetail?.scholarshipType?.toString() || '',
+        scholarshipType,
         scholarshipProviderName: student.financialDetail?.scholarshipProviderName || '',
         scholarshipAmount: student.financialDetail?.scholarshipAmount?.toString() || '',
       },
       bankDetails: student.bankDetail?.accountHolderName
         ? {
             accountHolderName: student.bankDetail.accountHolderName || '',
-            bankName: student.bankDetail.bankName?.toString() || '',
+            bankName: student.bankDetail.bankNameDisplay || '',
             accountNumber: student.bankDetail.accountNumber || '',
             branch: student.bankDetail.branch || '',
           }
         : undefined,
     },
     extracurricularDetails: {
-      interests: Array.isArray(extracurricular.interests)
-        ? extracurricular.interests
-        : (extracurricular.interests ? String(extracurricular.interests).split(',').map((x: string) => x.trim()).filter(Boolean) : []),
-      otherInterestDetails: extracurricular.otherInterestDetails || extracurricular.achievements || '',
+      interests: (() => {
+        const known = ['Sports','Music','Debate','Coding','Volunteering','Arts','Other'];
+        const raw = Array.isArray(extracurricular.interests)
+          ? extracurricular.interests
+          : (extracurricular.interests ? String(extracurricular.interests).split(',').map((x: string) => x.trim()).filter(Boolean) : []);
+        const selected = raw.filter((i: string) => known.includes(i));
+        const unknown = raw.filter((i: string) => !known.includes(i));
+        if (unknown.length > 0 && !selected.includes('Other')) selected.push('Other');
+        return selected;
+      })(),
+      otherInterestDetails: (() => {
+        const base = extracurricular.otherInterestDetails || extracurricular.achievements || '';
+        const known = ['Sports','Music','Debate','Coding','Volunteering','Arts','Other'];
+        const raw = Array.isArray(extracurricular.interests)
+          ? extracurricular.interests
+          : (extracurricular.interests ? String(extracurricular.interests).split(',').map((x: string) => x.trim()).filter(Boolean) : []);
+        const unknown = raw.filter((i: string) => !known.includes(i));
+        const extra = unknown.join(', ');
+        return base || extra;
+      })(),
       previousAwards: extracurricular.previousAwards || [],
-      hostellerStatus: extracurricular.hostellerStatus?.toString() || '',
-      transportationMethod: extracurricular.transportationMethod?.toString() || extracurricular.transportMethod?.toString() || '',
+      hostellerStatus,
+      transportationMethod,
     },
     declaration: {
       agreedToTerms: student.declaration?.isAgreed ?? false,
@@ -290,8 +364,65 @@ const EditDataPage = () => {
   useEffect(() => {
     if (studentData) {
       const mappedData = mapStudentToFormData(studentData)
-      console.log('Student Data from API:', studentData)
-      console.log('Mapped Form Data:', mappedData)
+      console.log('🔍 Student Data from API:', studentData)
+      console.log('✅ Mapped Form Data:', mappedData)
+      
+      // Comprehensive diagnostic logs
+      console.log('📋 PERSONAL DETAILS:', {
+        gender: studentData.personalDetails?.genderDisplay,
+        nationality: studentData.personalDetails?.nationalityDisplay,
+        bloodGroup: studentData.personalDetails?.bloodGroupDisplay,
+        maritalStatus: studentData.personalDetails?.maritalStatusDisplay,
+        mapped_gender: mappedData.personalDetails.gender,
+        mapped_nationality: mappedData.personalDetails.nationality,
+        mapped_bloodGroup: mappedData.personalDetails.bloodGroup,
+        mapped_maritalStatus: mappedData.personalDetails.maritalStatus,
+      })
+      
+      console.log('📍 ADDRESS DETAILS:', {
+        permanent: studentData.addresses?.find((a: any) => a.addressType === 0),
+        temporary: studentData.addresses?.find((a: any) => a.addressType === 1),
+        mapped_permanent: mappedData.addressDetails.permanent,
+        mapped_temporary: mappedData.addressDetails.temporary,
+      })
+      
+      console.log('👨‍👩‍👧 PARENT DETAILS:', {
+        father: studentData.parentGuardians?.find((p: any) => p.parentType === 0),
+        mother: studentData.parentGuardians?.find((p: any) => p.parentType === 1),
+        mapped_father: mappedData.parentGuardianDetails.father,
+        mapped_mother: mappedData.parentGuardianDetails.mother,
+        annualFamilyIncome: mappedData.parentGuardianDetails.annualFamilyIncome,
+      })
+      
+      console.log('🎓 ACADEMIC ENROLLMENT:', {
+        faculty: studentData.academicEnrollment?.facultyDisplay,
+        program: studentData.academicEnrollment?.programDisplay,
+        level: studentData.academicEnrollment?.levelDisplay,
+        academicYear: studentData.academicEnrollment?.academicYearDisplay,
+        semester: studentData.academicEnrollment?.semesterDisplay,
+        section: studentData.academicEnrollment?.sectionDisplay,
+        mapped_faculty: mappedData.academicDetails.currentEnrollment.faculty,
+        mapped_program: mappedData.academicDetails.currentEnrollment.program,
+        mapped_level: mappedData.academicDetails.currentEnrollment.courseLevel,
+        mapped_academicYear: mappedData.academicDetails.currentEnrollment.academicYear,
+        mapped_semester: mappedData.academicDetails.currentEnrollment.semesterClass,
+        mapped_section: mappedData.academicDetails.currentEnrollment.section,
+      })
+      
+      console.log('💰 FINANCIAL DETAILS:', {
+        feeCategory: studentData.financialDetail?.feeCategoryDisplay,
+        scholarshipType: studentData.financialDetail?.scholarshipTypeDisplay,
+        bankName: studentData.bankDetail?.bankNameDisplay,
+        mapped_feeCategory: mappedData.financialDetails.feeCategory,
+        mapped_scholarshipType: mappedData.financialDetails.scholarshipDetails.scholarshipType,
+        mapped_bankName: mappedData.financialDetails.bankDetails?.bankName,
+      })
+      
+      console.log('🎵 EXTRACURRICULAR DETAILS:', {
+        raw: studentData.extracurricularDetails?.[0],
+        mapped: mappedData.extracurricularDetails,
+      })
+      
       setFormData(mappedData)
     }
   }, [studentData])
@@ -317,7 +448,12 @@ const EditDataPage = () => {
         setFormData(emptyForm)
       }
     } catch (err: any) {
-      setError(err.message || 'Error fetching student data')
+      const isNetworkError = err.message?.includes('Network Error') || err.code === 'ERR_NETWORK'
+      if (isNetworkError) {
+        setError('⚠️ Cannot connect to backend server. Please ensure your .NET API is running on https://localhost:7257')
+      } else {
+        setError(err.message || 'Error fetching student data')
+      }
       setStudentData(null)
       setFormData(emptyForm)
     } finally {
@@ -521,6 +657,73 @@ const EditDataPage = () => {
               onChange={handleAcademicDetailsChange}
               errors={[]}
             />
+
+            {/* Current Admission Documents Viewer */}
+            {(() => {
+              const docs = Array.isArray(studentData?.documents) ? studentData.documents : []
+              const hasPhoto = typeof studentData?.photoPath === 'string' && studentData.photoPath.trim() !== ''
+
+              const BACKEND_ORIGIN = import.meta.env.DEV
+                ? (import.meta.env.VITE_API_ORIGIN || 'https://localhost:7257')
+                : (() => {
+                    const apiUrl = import.meta.env.VITE_API_URL || 'https://localhost:7257/api'
+                    try { return new URL(apiUrl).origin } catch { return 'https://localhost:7257' }
+                  })()
+
+              const normalizePath = (p: string) => p.replace(/\\/g, '/').trim()
+              const resolveUrl = (u: string) => {
+                if (!u) return ''
+                const clean = normalizePath(u)
+                if (/^https?:\/\//i.test(clean)) return clean
+                const path = clean.startsWith('/') ? clean : '/' + clean
+                return `${BACKEND_ORIGIN}${path}`
+              }
+
+              const items = docs.map((d: any, idx: number) => {
+                const title = d?.documentType || d?.type || d?.name || d?.fileName || `Document ${idx + 1}`
+                const rawUrl = d?.url || d?.path || d?.filePath || d?.downloadUrl || ''
+                const url = resolveUrl(rawUrl)
+                return { title, url, raw: d }
+              })
+
+              if (!hasPhoto && items.length === 0) return null
+
+              const isImage = (u: string) => /\.(png|jpg|jpeg|gif|webp)$/i.test(u)
+              const photoUrl = hasPhoto ? resolveUrl(studentData.photoPath) : ''
+
+              return (
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-3">Current Admission Documents</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {hasPhoto && (
+                      <div className="rounded-md border p-3 bg-white">
+                        <div className="text-sm font-medium text-slate-700 mb-2">Profile Photo</div>
+                        {isImage(photoUrl) ? (
+                          <img src={photoUrl} alt="Profile" className="h-40 w-full object-contain rounded" />
+                        ) : (
+                          <a href={photoUrl} target="_blank" className="text-purple-600 hover:underline" rel="noreferrer">View</a>
+                        )}
+                      </div>
+                    )}
+
+                    {items.map((it: { title: string; url: string; raw: any }, i: number) => (
+                      <div key={`${it.title}-${i}`} className="rounded-md border p-3 bg-white">
+                        <div className="text-sm font-medium text-slate-700 mb-2">{it.title}</div>
+                        {it.url ? (
+                          isImage(it.url) ? (
+                            <img src={it.url} alt={it.title} className="h-40 w-full object-contain rounded" />
+                          ) : (
+                            <a href={it.url} target="_blank" className="text-purple-600 hover:underline" rel="noreferrer">View / Download</a>
+                          )
+                        ) : (
+                          <pre className="text-xs text-slate-500 overflow-auto max-h-40">{JSON.stringify(it.raw, null, 2)}</pre>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             <FinancialDetailsSection
               data={formData.financialDetails}

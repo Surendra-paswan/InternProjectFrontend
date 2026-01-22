@@ -214,17 +214,25 @@ const ExtracurricularDetailsSection = ({ data, onChange, errors = [] }: Extracur
             Hosteller or Day Scholar
             <span className="required">*</span>
           </label>
-          <select
-            value={data.hostellerStatus || ''}
-            onChange={(e) => handleInputChange(e, 'hostellerStatus')}
-            required
-            className={`form-input ${hasStepFieldError(errors, stepKey, 'hostellerStatus') ? 'error' : ''}`}
-          >
-            <option value="">-- Select Status --</option>
-            {hostellerStatuses.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
+          {(() => {
+            const options = hostellerStatuses;
+            const withCurrent = data.hostellerStatus && !options.includes(data.hostellerStatus)
+              ? [data.hostellerStatus, ...options]
+              : options;
+            return (
+              <select
+                value={data.hostellerStatus || ''}
+                onChange={(e) => handleInputChange(e, 'hostellerStatus')}
+                required
+                className={`form-input ${hasStepFieldError(errors, stepKey, 'hostellerStatus') ? 'error' : ''}`}
+              >
+                <option value="">-- Select Status --</option>
+                {withCurrent.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            );
+          })()}
           {hasStepFieldError(errors, stepKey, 'hostellerStatus') && (
             <ValidationErrorDisplay 
               error={getStepFieldError(errors, stepKey, 'hostellerStatus')} 
@@ -237,17 +245,25 @@ const ExtracurricularDetailsSection = ({ data, onChange, errors = [] }: Extracur
             Transportation Method
             <span className="required">*</span>
           </label>
-          <select
-            value={data.transportationMethod || ''}
-            onChange={(e) => handleInputChange(e, 'transportationMethod')}
-            required
-            className={`form-input ${hasStepFieldError(errors, stepKey, 'transportationMethod') ? 'error' : ''}`}
-          >
-            <option value="">-- Select Method --</option>
-            {transportationMethods.map(method => (
-              <option key={method} value={method}>{method}</option>
-            ))}
-          </select>
+          {(() => {
+            const options = transportationMethods;
+            const withCurrent = data.transportationMethod && !options.includes(data.transportationMethod)
+              ? [data.transportationMethod, ...options]
+              : options;
+            return (
+              <select
+                value={data.transportationMethod || ''}
+                onChange={(e) => handleInputChange(e, 'transportationMethod')}
+                required
+                className={`form-input ${hasStepFieldError(errors, stepKey, 'transportationMethod') ? 'error' : ''}`}
+              >
+                <option value="">-- Select Method --</option>
+                {withCurrent.map(method => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            );
+          })()}
           {hasStepFieldError(errors, stepKey, 'transportationMethod') && (
             <ValidationErrorDisplay 
               error={getStepFieldError(errors, stepKey, 'transportationMethod')} 

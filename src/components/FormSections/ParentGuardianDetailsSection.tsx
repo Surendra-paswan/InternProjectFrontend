@@ -384,18 +384,30 @@ const ParentGuardianDetailsSection = ({ data, onChange, errors = [] }: ParentGua
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Annual Family Income</label>
-          <select
-            value={data.annualFamilyIncome || ''}
-            onChange={(e) => handleInputChange(e, 'annualFamilyIncome')}
-            className="form-input"
-          >
-            <option value="">-- Select Income Range --</option>
-            <option value="Less than 5 Lakh">Less than 5 Lakh</option>
-            <option value="5-10 Lakh">5-10 Lakh</option>
-            <option value="10-20 Lakh">10-20 Lakh</option>
-            <option value="More than 20 Lakh">More than 20 Lakh</option>
-            <option value="Prefer not to specify">Prefer not to specify</option>
-          </select>
+          {(() => {
+            const options = [
+              'Less than 5 Lakh',
+              '5-10 Lakh',
+              '10-20 Lakh',
+              'More than 20 Lakh',
+              'Prefer not to specify'
+            ];
+            const withCurrent = data.annualFamilyIncome && !options.includes(data.annualFamilyIncome)
+              ? [data.annualFamilyIncome, ...options]
+              : options;
+            return (
+              <select
+                value={data.annualFamilyIncome || ''}
+                onChange={(e) => handleInputChange(e, 'annualFamilyIncome')}
+                className="form-input"
+              >
+                <option value="">-- Select Income Range --</option>
+                {withCurrent.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            );
+          })()}
         </div>
       </div>
     </div>

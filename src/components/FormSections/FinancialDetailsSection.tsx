@@ -20,6 +20,15 @@ const FinancialDetailsSection = ({ data, onChange, errors = [] }: FinancialDetai
   };
 
   const isScholarship = data.feeCategory === 'Scholarship';
+  
+  // Ensure current values appear even if not in predefined options
+  const feeCategoriesWithCurrent = data.feeCategory && !feeCategories.includes(data.feeCategory)
+    ? [data.feeCategory, ...feeCategories]
+    : feeCategories;
+  const scholarshipTypesWithCurrent = data.scholarshipDetails?.scholarshipType 
+    && !scholarshipTypes.includes(data.scholarshipDetails.scholarshipType)
+    ? [data.scholarshipDetails.scholarshipType, ...scholarshipTypes]
+    : scholarshipTypes;
   const hasBankDetails = data.bankDetails !== undefined;
 
   return (
@@ -40,7 +49,7 @@ const FinancialDetailsSection = ({ data, onChange, errors = [] }: FinancialDetai
             className={`form-input ${hasStepFieldError(errors, stepKey, 'feeCategory') ? 'error' : ''}`}
           >
             <option value="">-- Select Fee Category --</option>
-            {feeCategories.map(category => (
+            {feeCategoriesWithCurrent.map(category => (
               <option key={category} value={category}>{category}</option>
             ))}
           </select>
@@ -76,7 +85,7 @@ const FinancialDetailsSection = ({ data, onChange, errors = [] }: FinancialDetai
                 className={`form-input ${hasStepFieldError(errors, stepKey, 'scholarshipDetails.scholarshipType') ? 'error' : ''}`}
               >
                 <option value="">-- Select Type --</option>
-                {scholarshipTypes.map(type => (
+                {scholarshipTypesWithCurrent.map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
