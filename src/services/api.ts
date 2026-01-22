@@ -12,6 +12,30 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
+// Merge two student payloads, preferring non-empty values and fuller arrays
+const mergeStudentPayloads = (a: any, b: any): any => {
+  const isObj = (v: any) => v && typeof v === 'object' && !Array.isArray(v);
+  if (!a && !b) return null;
+  if (!a) return b;
+  if (!b) return a;
+  const out: any = { ...a };
+  for (const [key, valB] of Object.entries(b)) {
+    const valA = out[key];
+    if (Array.isArray(valB)) {
+      // Prefer the non-empty array
+      out[key] = Array.isArray(valA) && valA.length > 0 ? valA : valB;
+    } else if (isObj(valB)) {
+      out[key] = mergeStudentPayloads(valA, valB);
+    } else {
+      // Fill empty/undefined with b
+      const isEmptyA = valA === undefined || valA === null || (typeof valA === 'string' && valA.trim() === '');
+      const hasB = valB !== undefined && valB !== null && !(typeof valB === 'string' && valB.trim() === '');
+      out[key] = isEmptyA && hasB ? valB : valA;
+    }
+  }
+  return out;
+}
+
 // Transform form data to EXACT backend structure
 const transformFormData = (formData: any) => {
   return {
@@ -223,16 +247,23 @@ const uploadStudentDocuments = async (studentId: string, formData: any) => {
 // Get all students
 export const getAllStudents = async (): Promise<ApiResponse<any[]>> => {
   try {
+    console.log(`📚 Fetching all students from /Student/all...`);
     const response = await axios.get(`${API_BASE_URL}/Student/all`, {
       validateStatus: () => true,
     });
+    console.log(`📊 /Student/all Status: ${response.status}, Data:`, response.data);
 
     if (response.status >= 200 && response.status < 300) {
+      // Unwrap data if nested
+      const studentsData = response.data?.data ?? response.data;
+      const studentsList = Array.isArray(studentsData) ? studentsData : [];
+      console.log(`✓ Retrieved ${studentsList.length} students`);
       return {
         success: true,
-        data: Array.isArray(response.data) ? response.data : [response.data],
+        data: studentsList,
       };
     } else {
+      console.log(`❌ Failed to fetch students: ${response.status}`);
       return {
         success: false,
         message: 'Failed to fetch students',
@@ -240,6 +271,7 @@ export const getAllStudents = async (): Promise<ApiResponse<any[]>> => {
       };
     }
   } catch (error: any) {
+    console.error(`❌ getAllStudents error:`, error.message);
     return {
       success: false,
       message: 'Network error',
@@ -248,40 +280,67 @@ export const getAllStudents = async (): Promise<ApiResponse<any[]>> => {
   }
 };
 
-// Get student by ID
+// Get student by ID (supports numeric ID, UUID, or PID)
 export const getStudentById = async (idOrPid: string): Promise<ApiResponse<any>> => {
   try {
-    // First try by primary id
-    let response = await axios.get(`${API_BASE_URL}/Student/${idOrPid}`, {
-      validateStatus: () => true,
-    });
-
-    // If not found, attempt PID-based route (common pattern `/Student/pid/{pid}`)
-    if (response.status === 404) {
-      response = await axios.get(`${API_BASE_URL}/Student/pid/${idOrPid}`, {
-        validateStatus: () => true,
-      });
-    }
-
-    if (response.status >= 200 && response.status < 300) {
-      const payload = response.data?.data ?? response.data;
-      return {
-        success: true,
-        data: payload,
-      };
-    } else {
-      return {
-        success: false,
-        message: response.data?.message || 'Failed to fetch student',
-        errors: ['Student not found'],
-      };
-    }
-  } catch (error: any) {
-    return {
-      success: false,
-      message: 'Network error',
-      errors: [error.message],
+    const tryGet = async (url: string) => {
+      console.log(`🔗 Fetching: ${url}`);
+      const res = await axios.get(url, { validateStatus: () => true });
+      console.log(`📊 Status: ${res.status}, Response:`, res.data);
+      return res;
     };
+
+    // Attempt both endpoints to obtain the fullest record
+    console.log(`🔍 Searching for: ${idOrPid}`);
+    const resId = await tryGet(`${API_BASE_URL}/Student/${idOrPid}`);
+    const payloadId = resId.status >= 200 && resId.status < 300 ? (resId.data?.data ?? resId.data) : null;
+    console.log(`✓ ID payload:`, payloadId);
+
+    const resPid = await tryGet(`${API_BASE_URL}/Student/pid/${idOrPid}`);
+    const payloadPid = resPid.status >= 200 && resPid.status < 300 ? (resPid.data?.data ?? resPid.data) : null;
+    console.log(`✓ PID payload:`, payloadPid);
+
+    const merged = mergeStudentPayloads(payloadId, payloadPid);
+    console.log(`✓ Merged result:`, merged);
+
+    if (merged) {
+      return { success: true, data: merged };
+    }
+
+    // If both direct lookups failed, try to find by numeric ID in the students list
+    console.log(`🔄 Direct lookups failed. Trying numeric ID lookup...`);
+    const numericId = parseInt(idOrPid, 10);
+    if (!isNaN(numericId)) {
+      const studentsRes = await getAllStudents();
+      console.log(`📋 getAllStudents result:`, studentsRes);
+      if (studentsRes.success && Array.isArray(studentsRes.data)) {
+        console.log(`📋 Searching in ${studentsRes.data.length} students for ID: ${numericId}`);
+        const found = studentsRes.data.find((s: any) => s.id === numericId);
+        console.log(`🔍 Found student:`, found);
+        if (found && found.pid) {
+          console.log(`✓ Found student by numeric ID ${numericId}, PID: ${found.pid}`);
+          // Fetch the full record using the PID directly (not /pid/ route)
+          const resFull = await tryGet(`${API_BASE_URL}/Student/${found.pid}`);
+          const payloadFull = resFull.status >= 200 && resFull.status < 300 ? (resFull.data?.data ?? resFull.data) : null;
+          if (payloadFull) {
+            console.log(`✓ Fetched full record for numeric ID ${numericId}:`, payloadFull);
+            return { success: true, data: payloadFull };
+          } else {
+            console.log(`❌ Failed to fetch full record for PID: ${found.pid}`);
+          }
+        } else {
+          console.log(`❌ No student found with numeric ID: ${numericId}`);
+        }
+      }
+    }
+
+    // No successful payloads or numeric ID lookup
+    const message = resId.data?.message || resPid.data?.message || 'Failed to fetch student';
+    console.log(`❌ Failed: ${message}`);
+    return { success: false, message, errors: ['Student not found'] };
+  } catch (error: any) {
+    console.error(`❌ Network error:`, error.message);
+    return { success: false, message: 'Network error', errors: [error.message] };
   }
 };
 
@@ -313,6 +372,45 @@ export const updateStudentById = async (id: string, data: any): Promise<ApiRespo
         success: false,
         message: response.data?.message || response.data?.title || 'Failed to update student',
         errors: errorMessages.length > 0 ? errorMessages : [response.data?.message || 'Update failed'],
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      message: 'Network error',
+      errors: [error.message],
+    };
+  }
+};
+
+// Partially update student by ID using HTTP PATCH
+export const updateStudentPartial = async (id: string, changes: any): Promise<ApiResponse<any>> => {
+  try {
+    console.log('🔄 Partially updating student:', id);
+    const response = await axios.patch(`${API_BASE_URL}/Student/${id}`, changes, {
+      validateStatus: () => true,
+    });
+
+    console.log('📊 PATCH response status:', response.status);
+    console.log('📊 PATCH response data:', response.data);
+
+    if (response.status >= 200 && response.status < 300) {
+      return {
+        success: true,
+        data: response.data,
+        message: 'Student updated successfully',
+      };
+    } else {
+      const errors =
+        (response.data?.errors && Array.isArray(response.data.errors)
+          ? response.data.errors
+          : typeof response.data?.errors === 'object'
+          ? Object.values(response.data.errors).flatMap((v: any) => (Array.isArray(v) ? v : [String(v)]))
+          : []) || [];
+      return {
+        success: false,
+        message: response.data?.message || 'Failed to update student',
+        errors,
       };
     }
   } catch (error: any) {
