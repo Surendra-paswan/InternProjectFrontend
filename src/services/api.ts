@@ -37,7 +37,7 @@ const mergeStudentPayloads = (a: any, b: any): any => {
 }
 
 // Transform form data to EXACT backend structure
-const transformFormData = (formData: any) => {
+export const transformFormData = (formData: any) => {
   return {
     // Basic Details
     firstName: formData.personalDetails?.firstName || 'Test',
