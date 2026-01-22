@@ -264,9 +264,10 @@ export const getStudentById = async (idOrPid: string): Promise<ApiResponse<any>>
     }
 
     if (response.status >= 200 && response.status < 300) {
+      const payload = response.data?.data ?? response.data;
       return {
         success: true,
-        data: response.data,
+        data: payload,
       };
     } else {
       return {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getStudentById, updateStudentById } from '../services/api'
 
 const EditDataPage = () => {
@@ -8,6 +8,17 @@ const EditDataPage = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [formData, setFormData] = useState<any>({})
+
+  // Sync formData when studentData changes
+  useEffect(() => {
+    if (studentData) {
+      console.log('🔄 Syncing studentData to formData:', studentData)
+      const dataToSync = { ...studentData }
+      console.log('🔄 Data keys to sync:', Object.keys(dataToSync))
+      setFormData(dataToSync)
+      console.log('🔄 FormData state updated')
+    }
+  }, [studentData])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,17 +30,58 @@ const EditDataPage = () => {
     try {
       setLoading(true)
       setError('')
+      setSuccess('')
       const response = await getStudentById(studentId)
-      if (response.success) {
-        setStudentData(response.data)
-        setFormData(response.data)
+      console.log('📥 API Response:', response)
+      
+      if (response.success && response.data) {
+        // Some APIs return { data: {...} } as payload; unwrap if needed
+        const fetchedData = response.data?.data ?? response.data
+        console.log('✓ Student fetched successfully:', fetchedData)
+        console.log('✓ Data keys:', Object.keys(fetchedData))
+        console.log('✓ firstName:', fetchedData.firstName, 'lastName:', fetchedData.lastName)
+
+        // Flatten nested API shape into the flat form fields used by the UI
+        const flat = {
+          ...fetchedData,
+          // Contact
+          email: fetchedData.contactDetail?.email ?? fetchedData.email ?? '',
+          alternateEmail: fetchedData.contactDetail?.alternateEmail ?? fetchedData.alternateEmail ?? '',
+          primaryMobile: fetchedData.contactDetail?.primaryMobile ?? fetchedData.primaryMobile ?? '',
+          secondaryMobile: fetchedData.contactDetail?.secondaryMobile ?? fetchedData.secondaryMobile ?? '',
+          // Citizenship
+          citizenshipNumber: fetchedData.citizenshipDetail?.citizenshipNumber ?? fetchedData.citizenshipNumber ?? '',
+          issueDate: fetchedData.citizenshipDetail?.issueDate ?? fetchedData.issueDate ?? '',
+          issueDistrict: fetchedData.citizenshipDetail?.issueDistrict ?? fetchedData.issueDistrict ?? '',
+          // Financial / Bank
+          scholarshipProviderName: fetchedData.financialDetail?.scholarshipProviderName ?? fetchedData.scholarshipProviderName ?? '',
+          accountHolderName: fetchedData.bankDetail?.accountHolderName ?? fetchedData.accountHolderName ?? '',
+          accountNumber: fetchedData.bankDetail?.accountNumber ?? fetchedData.accountNumber ?? '',
+          branch: fetchedData.bankDetail?.branch ?? fetchedData.branch ?? '',
+          // Academic
+          rollNumber: fetchedData.academicEnrollment?.rollNumber ?? fetchedData.rollNumber ?? '',
+          registrationNumber: fetchedData.academicEnrollment?.registrationNumber ?? fetchedData.registrationNumber ?? '',
+          enrollmentDate: fetchedData.academicEnrollment?.enrollmentDate ?? fetchedData.enrollmentDate ?? '',
+          academicYear: fetchedData.academicEnrollment?.academicYear ?? fetchedData.academicYear ?? '',
+          // Declaration
+          place: fetchedData.declaration?.place ?? fetchedData.place ?? '',
+          applicationDate: fetchedData.declaration?.applicationDate ?? fetchedData.applicationDate ?? '',
+        }
+
+        setStudentData(fetchedData)
+        // Immediate sync so inputs populate even before effect runs
+        setFormData(flat)
         setError('')
       } else {
         setError(response.message || 'Student not found')
         setStudentData(null)
+        setFormData({})
       }
     } catch (err: any) {
+      console.error('Error fetching student:', err)
       setError(err.message || 'Error fetching student data')
+      setStudentData(null)
+      setFormData({})
     } finally {
       setLoading(false)
     }
@@ -39,7 +91,6 @@ const EditDataPage = () => {
     const { name, value, type } = e.target
     let processedValue = value
     
-    // Convert date inputs to ISO format
     if (type === 'date' && value) {
       processedValue = new Date(value).toISOString()
     }
@@ -65,7 +116,6 @@ const EditDataPage = () => {
       
       const baseData = studentData || {}
 
-      // Preserve existing fields while normalizing a few numeric/boolean ones the backend expects
       const updateData = {
         ...baseData,
         ...formData,
@@ -88,8 +138,6 @@ const EditDataPage = () => {
         academicStatus: Number(formData.academicStatus ?? baseData.academicStatus ?? 1),
         isAgreed: formData.isAgreed ?? baseData.isAgreed ?? true,
         updatedOn: new Date().toISOString(),
-
-        // Ensure collections stay arrays instead of turning undefined
         addresses: formData.addresses ?? baseData.addresses ?? [],
         emergencyContacts: formData.emergencyContacts ?? baseData.emergencyContacts ?? [],
         disabilityDetails: formData.disabilityDetails ?? baseData.disabilityDetails ?? [],
@@ -98,16 +146,16 @@ const EditDataPage = () => {
         extracurricularDetails: formData.extracurricularDetails ?? baseData.extracurricularDetails ?? [],
       }
       
-      // Use the actual database ID from fetched data, not the search input (which might be PID)
       const actualId = baseData?.id || studentId
       
+      console.log('📝 Editing Student - ID:', actualId, ' PID:', baseData?.pid)
       console.log('📤 Sending update data:', updateData)
       const response = await updateStudentById(actualId, updateData)
       
       console.log('📥 Update response:', response)
       
       if (response.success) {
-        setSuccess('✓ Student data updated successfully!')
+        setSuccess(`✓ Student data updated successfully! (Student ID: ${actualId})`)
         setError('')
       } else {
         const errorMsg = response.message || 'Failed to update student'
@@ -138,7 +186,7 @@ const EditDataPage = () => {
           <div className="flex gap-4">
             <input
               type="text"
-              placeholder="Enter Student ID"
+              placeholder="Enter Student ID or PID"
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
               className="flex-1 rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
@@ -167,7 +215,16 @@ const EditDataPage = () => {
 
         {studentData && (
           <form onSubmit={handleSubmit} className="space-y-6 rounded-lg bg-white p-6 shadow-md">
-            <h2 className="text-xl font-semibold text-slate-900">Edit Student Information</h2>
+            <div className="mb-4 rounded-lg bg-blue-50 p-4">
+              <h2 className="text-xl font-semibold text-slate-900">Edit Student Information</h2>
+              <p className="text-sm text-slate-600 mt-1">
+                ID: <span className="font-mono font-bold">{studentData?.id}</span> | 
+                PID: <span className="font-mono font-bold">{studentData?.pid}</span>
+              </p>
+              <p className="text-sm text-slate-600">
+                Current Name: <span className="font-semibold">{formData?.firstName} {formData?.middleName} {formData?.lastName}</span>
+              </p>
+            </div>
             
             {/* Personal Details */}
             <div className="space-y-4">
@@ -175,31 +232,79 @@ const EditDataPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">First Name</label>
-                  <input type="text" name="firstName" value={formData?.firstName || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="firstName" 
+                    value={formData?.firstName ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter first name"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Middle Name</label>
-                  <input type="text" name="middleName" value={formData?.middleName || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="middleName" 
+                    value={formData?.middleName ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter middle name"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Last Name</label>
-                  <input type="text" name="lastName" value={formData?.lastName || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="lastName" 
+                    value={formData?.lastName ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter last name"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Date of Birth</label>
-                  <input type="date" name="dateOfBirth" value={formData?.dateOfBirth?.split('T')[0] || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="date" 
+                    name="dateOfBirth" 
+                    value={formData?.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : ''} 
+                    onChange={handleInputChange} 
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Place of Birth</label>
-                  <input type="text" name="placeOfBirth" value={formData?.placeOfBirth || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="placeOfBirth" 
+                    value={formData?.placeOfBirth ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter place of birth"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Religion</label>
-                  <input type="text" name="religion" value={formData?.religion || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="religion" 
+                    value={formData?.religion ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter religion"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Ethnicity</label>
-                  <input type="text" name="ethnicity" value={formData?.ethnicity || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="ethnicity" 
+                    value={formData?.ethnicity ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter ethnicity"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
               </div>
             </div>
@@ -210,19 +315,47 @@ const EditDataPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Email</label>
-                  <input type="email" name="email" value={formData?.email || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="email" 
+                    name="email" 
+                    value={formData?.email ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter email"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Alternate Email</label>
-                  <input type="email" name="alternateEmail" value={formData?.alternateEmail || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="email" 
+                    name="alternateEmail" 
+                    value={formData?.alternateEmail ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter alternate email"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Primary Mobile</label>
-                  <input type="text" name="primaryMobile" value={formData?.primaryMobile || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="primaryMobile" 
+                    value={formData?.primaryMobile ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter primary mobile"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Secondary Mobile</label>
-                  <input type="text" name="secondaryMobile" value={formData?.secondaryMobile || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="secondaryMobile" 
+                    value={formData?.secondaryMobile ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter secondary mobile"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
               </div>
             </div>
@@ -233,15 +366,35 @@ const EditDataPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Citizenship Number</label>
-                  <input type="text" name="citizenshipNumber" value={formData?.citizenshipNumber || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="citizenshipNumber" 
+                    value={formData?.citizenshipNumber ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter citizenship number"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Issue Date</label>
-                  <input type="date" name="issueDate" value={formData?.issueDate?.split('T')[0] || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="date" 
+                    name="issueDate" 
+                    value={formData?.issueDate ? new Date(formData.issueDate).toISOString().split('T')[0] : ''} 
+                    onChange={handleInputChange} 
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Issue District</label>
-                  <input type="text" name="issueDistrict" value={formData?.issueDistrict || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="issueDistrict" 
+                    value={formData?.issueDistrict ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter issue district"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
               </div>
             </div>
@@ -252,19 +405,47 @@ const EditDataPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Scholarship Provider Name</label>
-                  <input type="text" name="scholarshipProviderName" value={formData?.scholarshipProviderName || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="scholarshipProviderName" 
+                    value={formData?.scholarshipProviderName ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter scholarship provider name"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Account Holder Name</label>
-                  <input type="text" name="accountHolderName" value={formData?.accountHolderName || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="accountHolderName" 
+                    value={formData?.accountHolderName ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter account holder name"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Account Number</label>
-                  <input type="text" name="accountNumber" value={formData?.accountNumber || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="accountNumber" 
+                    value={formData?.accountNumber ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter account number"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Branch</label>
-                  <input type="text" name="branch" value={formData?.branch || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="branch" 
+                    value={formData?.branch ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter branch name"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
               </div>
             </div>
@@ -275,19 +456,46 @@ const EditDataPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Roll Number</label>
-                  <input type="text" name="rollNumber" value={formData?.rollNumber || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="rollNumber" 
+                    value={formData?.rollNumber ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter roll number"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Registration Number</label>
-                  <input type="text" name="registrationNumber" value={formData?.registrationNumber || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="registrationNumber" 
+                    value={formData?.registrationNumber ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter registration number"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Enrollment Date</label>
-                  <input type="date" name="enrollmentDate" value={formData?.enrollmentDate?.split('T')[0] || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="date" 
+                    name="enrollmentDate" 
+                    value={formData?.enrollmentDate ? new Date(formData.enrollmentDate).toISOString().split('T')[0] : ''} 
+                    onChange={handleInputChange} 
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Academic Year</label>
-                  <input type="number" name="academicYear" value={formData?.academicYear || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="number" 
+                    name="academicYear" 
+                    value={formData?.academicYear ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter academic year"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
               </div>
             </div>
@@ -298,11 +506,24 @@ const EditDataPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Place</label>
-                  <input type="text" name="place" value={formData?.place || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="text" 
+                    name="place" 
+                    value={formData?.place ?? ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Enter place"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900">Application Date</label>
-                  <input type="date" name="applicationDate" value={formData?.applicationDate?.split('T')[0] || ''} onChange={handleInputChange} className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" />
+                  <input 
+                    type="date" 
+                    name="applicationDate" 
+                    value={formData?.applicationDate ? new Date(formData.applicationDate).toISOString().split('T')[0] : ''} 
+                    onChange={handleInputChange} 
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600" 
+                  />
                 </div>
               </div>
             </div>
