@@ -157,7 +157,7 @@ export const transformFormData = (formData: any) => {
   };
 };
 
-// Submit student enrollment form
+// Submit student enrollment form (without documents)
 export const submitStudentEnrollment = async (formData: any): Promise<ApiResponse<any>> => {
   try {
     console.log("form data request:", formData);
@@ -177,16 +177,15 @@ export const submitStudentEnrollment = async (formData: any): Promise<ApiRespons
     console.log('📨 Response:', response.data);
 
     if (response.status >= 200 && response.status < 300) {
-      const studentId = response.data?.data?.id || response.data?.id;
-      
-      // Upload documents if student was created
-      if (studentId && formData.academicDetails) {
-        uploadStudentDocuments(studentId, formData);
-      }
+      // Extract pid from response
+      const pid = response.data?.data?.pid || response.data?.pid;
       
       return {
         success: true,
-        data: response.data,
+        data: {
+          ...response.data,
+          pid: pid
+        },
         message: response.data?.message || 'Enrollment submitted successfully!',
       };
     } else {
@@ -207,40 +206,74 @@ export const submitStudentEnrollment = async (formData: any): Promise<ApiRespons
   }
 };
 
-// Upload documents for a student
-const uploadStudentDocuments = async (studentId: string, formData: any) => {
+// Upload documents for a student using PID
+export const uploadStudentDocuments = async (pid: string, formData: any): Promise<ApiResponse<any>> => {
   try {
     const formDataObj = new FormData();
     
-    if (formData.academicDetails?.citizenshipFrontUpload) {
-      formDataObj.append('PhotoFile', formData.academicDetails.citizenshipFrontUpload);
-    }
-    if (formData.academicDetails?.citizenshipBackUpload) {
-      formDataObj.append('CitizenshipFile', formData.academicDetails.citizenshipBackUpload);
+    // Map form fields to API parameters based on Swagger specification
+    if (formData.personalDetails.photoPath) {
+      formDataObj.append('PhotoFile', formData.personalDetails.photoPath);
     }
     if (formData.academicDetails?.signatureUpload) {
       formDataObj.append('SignatureFile', formData.academicDetails.signatureUpload);
     }
+    if (formData.academicDetails?.citizenshipFrontUpload) {
+      formDataObj.append('CitizenshipFile', formData.academicDetails.citizenshipFrontUpload);
+    }
     if (formData.academicDetails?.characterCertificateUpload) {
       formDataObj.append('CharacterCertificateFile', formData.academicDetails.characterCertificateUpload);
     }
+    if (formData.academicDetails?.marksheetUploads && Array.isArray(formData.academicDetails.marksheetUploads)) {
+      formData.academicDetails.marksheetUploads.forEach((file: File) => {
+        formDataObj.append('MarksheetFiles', file);
+      });
+    }
 
-    if (formDataObj.entries().next().value) {
-      console.log('📤 Uploading documents for student:', studentId);
-      
-      const response = await axios.post(
-        `${API_BASE_URL}/Student/${studentId}/upload-files`,
-        formDataObj,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          validateStatus: () => true,
-        }
-      );
+    // Check if there are any files to upload
+    if (!formDataObj.entries().next().value) {
+      return {
+        success: false,
+        message: 'No documents to upload',
+        errors: ['No files were provided']
+      };
+    }
 
-      console.log('✅ Upload status:', response.status);
+    console.log(`📤 Uploading documents for student PID: ${pid}`);
+    
+    const response = await axios.post(
+      `${API_BASE_URL}/Student/${pid}/upload-files`,
+      formDataObj,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        validateStatus: () => true,
+      }
+    );
+
+    console.log('✅ Document upload status:', response.status);
+    console.log('📨 Document upload response:', response.data);
+
+    if (response.status >= 200 && response.status < 300) {
+      return {
+        success: true,
+        data: response.data,
+        message: 'Documents uploaded successfully'
+      };
+    } else {
+      const errorMessage = response.data?.message || `Upload error: ${response.status}`;
+      return {
+        success: false,
+        message: errorMessage,
+        errors: [errorMessage]
+      };
     }
   } catch (error: any) {
-    console.error('Document upload error:', error.message);
+    console.error('❌ Document upload error:', error.message);
+    return {
+      success: false,
+      message: error.message || 'Failed to upload documents',
+      errors: [error.message]
+    };
   }
 };
 

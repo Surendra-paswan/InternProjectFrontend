@@ -7,6 +7,7 @@ import FinancialDetailsSection from '../components/FormSections/FinancialDetails
 import ExtracurricularDetailsSection from '../components/FormSections/ExtracurricularDetailsSection'
 import DeclarationSection from '../components/FormSections/DeclarationSection'
 import { getStudentById, transformFormData, updateStudentById } from '../services/api'
+import { getDocumentUrl } from '../config/api.config'
 
 const emptyForm = {
   personalDetails: {
@@ -172,21 +173,7 @@ const mapStudentToFormData = (student: any) => {
   
   // Resolve photo URL for display
   const photoPath = student.photoPath || ''
-  const BACKEND_ORIGIN = import.meta.env.DEV
-    ? (import.meta.env.VITE_API_ORIGIN || 'https://localhost:7257')
-    : (() => {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://localhost:7257/api'
-        try { return new URL(apiUrl).origin } catch { return 'https://localhost:7257' } 
-      })()
-  const normalizePath = (p: string) => p.replace(/\\/g, '/').trim()
-  const resolveUrl = (u: string) => {
-    if (!u) return ''
-    const clean = normalizePath(u)
-    if (/^https?:\/\//i.test(clean)) return clean
-    const path = clean.startsWith('/') ? clean : '/' + clean
-    return `${BACKEND_ORIGIN}${path}`
-  }
-  const profilePhotoUrl = photoPath ? resolveUrl(photoPath) : ''
+  const profilePhotoUrl = photoPath ? getDocumentUrl(photoPath) : ''
   
   // Map academic year from Year2081 to 1st Year, 2nd Year etc (defaults to original if no match)
   const academicYearDisplay = student.academicEnrollment?.academicYearDisplay || ''
@@ -663,33 +650,17 @@ const EditDataPage = () => {
               const docs = Array.isArray(studentData?.documents) ? studentData.documents : []
               const hasPhoto = typeof studentData?.photoPath === 'string' && studentData.photoPath.trim() !== ''
 
-              const BACKEND_ORIGIN = import.meta.env.DEV
-                ? (import.meta.env.VITE_API_ORIGIN || 'https://localhost:7257')
-                : (() => {
-                    const apiUrl = import.meta.env.VITE_API_URL || 'https://localhost:7257/api'
-                    try { return new URL(apiUrl).origin } catch { return 'https://localhost:7257' }
-                  })()
-
-              const normalizePath = (p: string) => p.replace(/\\/g, '/').trim()
-              const resolveUrl = (u: string) => {
-                if (!u) return ''
-                const clean = normalizePath(u)
-                if (/^https?:\/\//i.test(clean)) return clean
-                const path = clean.startsWith('/') ? clean : '/' + clean
-                return `${BACKEND_ORIGIN}${path}`
-              }
-
               const items = docs.map((d: any, idx: number) => {
                 const title = d?.documentType || d?.type || d?.name || d?.fileName || `Document ${idx + 1}`
                 const rawUrl = d?.url || d?.path || d?.filePath || d?.downloadUrl || ''
-                const url = resolveUrl(rawUrl)
+                const url = getDocumentUrl(rawUrl)
                 return { title, url, raw: d }
               })
 
               if (!hasPhoto && items.length === 0) return null
 
               const isImage = (u: string) => /\.(png|jpg|jpeg|gif|webp)$/i.test(u)
-              const photoUrl = hasPhoto ? resolveUrl(studentData.photoPath) : ''
+              const photoUrl = hasPhoto ? getDocumentUrl(studentData.photoPath) : ''
 
               return (
                 <div className="rounded-lg border border-slate-200 p-4">

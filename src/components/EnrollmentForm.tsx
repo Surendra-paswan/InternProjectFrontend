@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { StudentEnrollmentForm, PersonalDetails, AddressDetails, ParentGuardianDetails, AcademicDetails } from '../types';
 import { EnrollmentFormSchema } from '../validation/schema';
 import { formatZodErrors, type ValidationError } from '../validation/utils';
-import { submitStudentEnrollment } from '../services/api';
+import { submitStudentEnrollment, uploadStudentDocuments } from '../services/api';
 import '../styles/form.css';
 import '../styles/formFields.css';
 import '../styles/addressFields.css';
@@ -289,24 +289,47 @@ const EnrollmentForm = () => {
       setValidationErrors([]);
       setIsSubmitting(true);
 
-      // Submit to backend API
+      // Step 1: Submit student data to backend API
+      console.log('Step 1: Submitting student data...');
       const response = await submitStudentEnrollment(formData);
+
+      if (!response.success) {
+        setIsSubmitting(false);
+        console.error('API Error:', response.errors);
+        alert(`❌ Submission failed!\n\n${response.message}\n\nErrors:\n${response.errors?.join('\n')}`);
+        return;
+      }
+
+      console.log('=== STUDENT DATA SUBMITTED SUCCESSFULLY ===');
+      console.log('API Response:', response.data);
+      
+      // Step 2: Extract PID from response
+      const pid = response.data?.data?.pid || response.data?.pid;
+      
+      if (!pid) {
+        setIsSubmitting(false);
+        alert(`⚠️ Student registered but PID not found!\n\n${response.message}\n\nPlease contact administrator.`);
+        return;
+      }
+
+      console.log(`✓ Generated PID: ${pid}`);
+
+      // Step 3: Upload documents using the generated PID
+      console.log('Step 2: Uploading documents with PID...');
+      const uploadResponse = await uploadStudentDocuments(pid, formData);
 
       setIsSubmitting(false);
 
-      if (response.success) {
-        console.log('=== STUDENT ENROLLMENT FORM SUBMITTED SUCCESSFULLY ===');
-        console.log(JSON.stringify(formData, null, 2));
-        console.log('API Response:', response.data);
-        
-        alert(`✓ Form submitted successfully!\n\n${response.message}\n\nYour enrollment has been recorded in the system.`);
-        
-        // Optional: Reset form or redirect
-        // window.location.href = '/success';
+      if (uploadResponse.success) {
+        console.log('=== DOCUMENTS UPLOADED SUCCESSFULLY ===');
+        alert(`✓ Form submitted successfully!\n\nPID: ${pid}\n\n${response.message}\n\nDocuments uploaded successfully!`);
       } else {
-        console.error('API Error:', response.errors);
-        alert(`❌ Submission failed!\n\n${response.message}\n\nErrors:\n${response.errors?.join('\n')}`);
+        console.warn('Document upload warning:', uploadResponse.message);
+        alert(`✓ Student registered successfully!\n\nPID: ${pid}\n\n⚠️ Document upload: ${uploadResponse.message}`);
       }
+      
+      // Optional: Reset form or redirect
+      // window.location.href = '/success';
     } catch (error: any) {
       setIsSubmitting(false);
       

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getStudentById } from '../services/api'
+import { getDocumentUrl } from '../config/api.config'
 
 const ViewDataPage = () => {
   const [studentId, setStudentId] = useState('')
@@ -120,6 +121,45 @@ const ViewDataPage = () => {
                   <div><span className="font-medium text-slate-700">Application Date:</span> <span className="ml-2 text-slate-900">{studentData?.applicationDate ? new Date(studentData.applicationDate).toLocaleDateString() : 'N/A'}</span></div>
                   <div><span className="font-medium text-slate-700">Updated On:</span> <span className="ml-2 text-slate-900">{studentData?.updatedOn ? new Date(studentData.updatedOn).toLocaleDateString() : 'N/A'}</span></div>
                 </div>
+              </div>
+
+              {/* Photo and Documents Section */}
+              <div className="col-span-full rounded-lg bg-slate-50 p-4">
+                <h3 className="mb-3 font-semibold text-slate-900">Documents</h3>
+                {studentData?.photoPath && (
+                  <div className="mb-4">
+                    <p className="mb-2 text-sm font-medium text-slate-700">Profile Photo:</p>
+                    <img 
+                      src={getDocumentUrl(studentData.photoPath)} 
+                      alt="Profile" 
+                      className="h-40 w-40 rounded-lg border-2 border-slate-200 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="160"%3E%3Crect fill="%23ddd" width="160" height="160"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
+                      }}
+                    />
+                  </div>
+                )}
+                {studentData?.documents && studentData.documents.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Uploaded Documents:</p>
+                    <ul className="space-y-1 text-sm text-slate-600">
+                      {studentData.documents.map((doc: any, idx: number) => (
+                        <li key={idx}>
+                          <a 
+                            href={getDocumentUrl(doc.filePath)} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {doc.documentTypeDisplay || doc.documentType || `Document ${idx + 1}`}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  !studentData?.photoPath && <p className="text-sm text-slate-500">No documents available</p>
+                )}
               </div>
             </div>
           </div>
