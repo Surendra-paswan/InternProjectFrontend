@@ -212,8 +212,8 @@ export const uploadStudentDocuments = async (pid: string, formData: any): Promis
     const formDataObj = new FormData();
     
     // Map form fields to API parameters based on Swagger specification
-    if (formData.personalDetails.photoPath) {
-      formDataObj.append('PhotoFile', formData.personalDetails.photoPath);
+    if (formData.personalDetails.profileImage) {
+      formDataObj.append('PhotoFile', formData.personalDetails.profileImage);
     }
     if (formData.academicDetails?.signatureUpload) {
       formDataObj.append('SignatureFile', formData.academicDetails.signatureUpload);
