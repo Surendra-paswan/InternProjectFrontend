@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getStudentById, deleteStudentById } from '../services/api'
 import { getDocumentUrl } from '../config/api.config'
 
 const DeleteDataPage = () => {
+  const [searchParams] = useSearchParams()
   const [studentId, setStudentId] = useState('')
   const [studentData, setStudentData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -10,9 +12,17 @@ const DeleteDataPage = () => {
   const [success, setSuccess] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!studentId.trim()) {
+  // Auto-fetch if PID is in URL
+  useEffect(() => {
+    const pidFromUrl = searchParams.get('pid')
+    if (pidFromUrl) {
+      setStudentId(pidFromUrl)
+      fetchStudentData(pidFromUrl)
+    }
+  }, [searchParams])
+
+  const fetchStudentData = async (id: string) => {
+    if (!id.trim()) {
       setError('Please enter a PID (Student ID)')
       return
     }
@@ -22,12 +32,12 @@ const DeleteDataPage = () => {
       setError('')
       setSuccess('')
       setConfirmDelete(false)
-      const response = await getStudentById(studentId)
+      const response = await getStudentById(id)
       if (response.success && response.data) {
         setStudentData(response.data)
         setError('')
       } else {
-        setError(`No record found for PID: ${studentId}`)
+        setError(`No record found for PID: ${id}`)
         setStudentData(null)
       }
     } catch (err: any) {
@@ -36,6 +46,11 @@ const DeleteDataPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    fetchStudentData(studentId)
   }
 
   const handleDelete = async () => {

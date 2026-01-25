@@ -44,6 +44,7 @@ const NavBar = () => {
             {isDataOpen && (
               <div className="absolute left-0 z-20 mt-2 w-52 rounded-xl bg-white/95 py-2 text-slate-900 shadow-xl ring-1 ring-black/5 backdrop-blur">
                 <Link to="/" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Create New Data</Link>
+                <Link to="/list-all" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">List All Students</Link>
                 <Link to="/view-data" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">View Data</Link>
                 <Link to="/edit-data" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Edit Data</Link>
                 <Link to="/delete-data" onClick={() => setIsDataOpen(false)} className="block px-4 py-2 text-sm font-medium transition hover:bg-slate-100">Delete Data</Link>
@@ -87,6 +88,7 @@ const NavBar = () => {
             {isDataOpen && (
               <div className="space-y-1 rounded-lg bg-white/10 px-3 py-2">
                 <Link to="/" className="block rounded-md px-2 py-2 text-sm font-medium transition hover:bg-white/10">Create New Data</Link>
+                <Link to="/list-all" className="block rounded-md px-2 py-2 text-sm font-medium transition hover:bg-white/10">List All Students</Link>
                 <Link to="/view-data" className="block rounded-md px-2 py-2 text-sm font-medium transition hover:bg-white/10">View Data</Link>
                 <Link to="/edit-data" className="block rounded-md px-2 py-2 text-sm font-medium transition hover:bg-white/10">Edit Data</Link>
                 <Link to="/delete-data" className="block rounded-md px-2 py-2 text-sm font-medium transition hover:bg-white/10">Delete Data</Link>

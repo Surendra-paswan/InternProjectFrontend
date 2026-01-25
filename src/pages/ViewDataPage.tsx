@@ -1,16 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getStudentById } from '../services/api'
 import { getDocumentUrl } from '../config/api.config'
 
 const ViewDataPage = () => {
+  const [searchParams] = useSearchParams()
   const [studentId, setStudentId] = useState('')
   const [studentData, setStudentData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!studentId.trim()) {
+  // Auto-fetch if PID is in URL
+  useEffect(() => {
+    const pidFromUrl = searchParams.get('pid')
+    if (pidFromUrl) {
+      setStudentId(pidFromUrl)
+      fetchStudentData(pidFromUrl)
+    }
+  }, [searchParams])
+
+  const fetchStudentData = async (id: string) => {
+    if (!id.trim()) {
       setError('Please enter a Student ID (PID)')
       return
     }
@@ -18,7 +28,7 @@ const ViewDataPage = () => {
     try {
       setLoading(true)
       setError('')
-      const response = await getStudentById(studentId)
+      const response = await getStudentById(id)
       console.log('API Response:', response)
       if (response.success) {
         console.log('Student Data:', response.data)
@@ -34,6 +44,11 @@ const ViewDataPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    fetchStudentData(studentId)
   }
 
   return (

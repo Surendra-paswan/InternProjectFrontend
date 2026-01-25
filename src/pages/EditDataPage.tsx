@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import PersonalDetailsSection from '../components/FormSections/PersonalDetailsSection'
 import AddressDetailsSection from '../components/FormSections/AddressDetailsSection'
 import ParentGuardianDetailsSection from '../components/FormSections/ParentGuardianDetailsSection'
@@ -341,12 +342,55 @@ const mapStudentToFormData = (student: any) => {
 }
 
 const EditDataPage = () => {
+  const [searchParams] = useSearchParams()
   const [studentId, setStudentId] = useState('')
   const [studentData, setStudentData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [formData, setFormData] = useState<any>(emptyForm)
+
+  // Auto-fetch if PID is in URL
+  useEffect(() => {
+    const pidFromUrl = searchParams.get('pid')
+    if (pidFromUrl) {
+      setStudentId(pidFromUrl)
+      fetchStudentData(pidFromUrl)
+    }
+  }, [searchParams])
+
+  const fetchStudentData = async (id: string) => {
+    if (!id.trim()) {
+      setError('Please enter a student ID or PID')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError('')
+      setSuccess('')
+      const response = await getStudentById(id)
+      if (response.success && response.data) {
+        setStudentData(response.data)
+        setError('')
+      } else {
+        setError(response.message || 'Student not found. Please check the ID or PID.')
+        setStudentData(null)
+        setFormData(emptyForm)
+      }
+    } catch (err: any) {
+      const isNetworkError = err.message?.includes('Network Error') || err.code === 'ERR_NETWORK'
+      if (isNetworkError) {
+        setError('⚠️ Cannot connect to backend server. Please ensure your .NET API is running on https://localhost:7257')
+      } else {
+        setError(err.message || 'Error fetching student data')
+      }
+      setStudentData(null)
+      setFormData(emptyForm)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (studentData) {
@@ -416,36 +460,7 @@ const EditDataPage = () => {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!studentId.trim()) {
-      setError('Please enter a student ID or PID')
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError('')
-      setSuccess('')
-      const response = await getStudentById(studentId)
-      if (response.success && response.data) {
-        setStudentData(response.data)
-        setError('')
-      } else {
-        setError(response.message || 'Student not found. Please check the ID or PID.')
-        setStudentData(null)
-        setFormData(emptyForm)
-      }
-    } catch (err: any) {
-      const isNetworkError = err.message?.includes('Network Error') || err.code === 'ERR_NETWORK'
-      if (isNetworkError) {
-        setError('⚠️ Cannot connect to backend server. Please ensure your .NET API is running on https://localhost:7257')
-      } else {
-        setError(err.message || 'Error fetching student data')
-      }
-      setStudentData(null)
-      setFormData(emptyForm)
-    } finally {
-      setLoading(false)
-    }
+    fetchStudentData(studentId)
   }
 
   const handlePersonalDetailsChange = (field: string, value: any) => {
